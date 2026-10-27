@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Break Time Grand Prix</title>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Barlow:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--asphalt:#13151a;--tarmac:#262a32;--paint:#e8e2d0;--amber:#ffb000;--red:#e63946;--mute:#8d93a0}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--asphalt);color:var(--paint);font:500 16px/1.4 Barlow,system-ui,sans-serif;min-height:100vh;display:flex;justify-content:center;padding:20px 14px 40px}
+main{width:100%;max-width:520px}
+h1{font:400 clamp(30px,8vw,44px)/1 Bungee,Impact,sans-serif;margin:8px 0 4px;color:var(--amber)}
+h2{font:400 24px/1.1 Bungee,Impact,sans-serif;margin:0 0 8px}
+h3{margin:14px 0 6px;font-size:16px;color:var(--mute)}
+p.sub{margin:0 0 18px;color:var(--mute)}
+.card{background:var(--tarmac);border-radius:6px;padding:16px;margin-bottom:14px;border-left:6px solid var(--amber)}
+label{display:block;margin:10px 0 4px;color:var(--mute);font-size:14px}
+input,textarea{width:100%;padding:11px;border:2px solid #3a3f4a;background:var(--asphalt);color:var(--paint);border-radius:4px;font:inherit}
+input:focus,textarea:focus,button:focus-visible{outline:3px solid var(--amber);outline-offset:1px}
+textarea{min-height:110px;resize:vertical}
+button{font:700 16px Barlow,sans-serif;padding:12px 18px;border:0;border-radius:4px;background:var(--amber);color:#1b1500;cursor:pointer;margin-top:12px}
+button.alt{background:#3a3f4a;color:var(--paint)}
+.tabs{display:flex;gap:8px;margin-bottom:12px}.tabs button{margin:0;flex:1}.tabs .on{background:var(--amber);color:#1b1500}
+.err{color:var(--red);min-height:20px;margin-top:8px}
+.lane{display:flex;align-items:center;gap:8px;margin:5px 0}
+.nm{width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
+.trk{flex:1;height:14px;background:var(--asphalt);border-radius:7px;position:relative;border-right:4px dashed var(--paint)}
+.trk i{position:absolute;top:1px;width:22px;height:12px;border-radius:4px}
+#big{font:400 96px/1 Bungee,Impact,sans-serif;text-align:center;color:var(--amber);height:100px}
+#game{position:relative}
+canvas{width:100%;max-width:360px;display:block;margin:0 auto;border-radius:6px;touch-action:none}
+.pad{display:flex;gap:10px;max-width:360px;margin:10px auto 0}.pad button{flex:1;margin:0;padding:18px 0;font-size:20px;user-select:none;touch-action:none}
+.pad #gas{flex:2;background:var(--red);color:#fff}
+ol{margin:6px 0;padding-left:22px}
+.crown{color:var(--amber)}
+</style>
+</head>
+<body>
+<main>
+<h1>Break Time Grand Prix</h1>
+<p class="sub">Quick race for everyone in the room. The admin starts it.</p>
+
+<section id="home">
+  <div class="tabs"><button id="tp" class="on">I'm a player</button><button id="ta" class="alt">I'm the admin</button></div>
+  <div class="card" id="fp">
+    <label for="rc">Room code</label><input id="rc" autocomplete="off">
+    <label for="pid">Your ID</label><input id="pid" autocomplete="off">
+    <button id="join">Join race</button><div class="err" id="perr"></div>
+  </div>
+  <div class="card" id="fa" hidden>
+    <label for="arc">Room code (share this with players)</label><input id="arc" autocomplete="off">
+    <label for="apw">Admin password</label><input id="apw" type="password">
+    <label for="ids">Allowed players, one per line as ID,Name</label>
+    <textarea id="ids" placeholder="1001,Asha&#10;1002,Ravi&#10;1003,Meena"></textarea>
+    <button id="open">Open room</button><div class="err" id="aerr"></div>
+  </div>
+</section>
+
+<section id="room" hidden>
+  <div class="card"><h2 id="rt"></h2><div id="info"></div>
+    <div id="hb" hidden><button id="start">Start race</button> <button id="reset" class="alt">New round</button> <button id="endroom" class="alt">End room</button></div>
+  </div>
+  <div id="results" class="card" hidden></div>
+  <div id="strip" class="card" hidden></div>
+  <div id="big" aria-live="assertive"></div>
+  <div id="game" hidden>
+    <canvas id="cv" width="360" height="560"></canvas>
+    <div class="pad"><button id="bl" class="alt" aria-label="Move left">&lt;</button><button id="gas">Hold to drive</button><button id="br" class="alt" aria-label="Move right">&gt;</button></div>
+    <p class="sub" style="text-align:center;margin-top:10px">Keyboard: arrow left/right to change lane, arrow up or space to drive. Cones slow you down.</p>
+  </div>
+</section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+// ---- SETUP: paste your Supabase values and choose an admin password ----
+const CFG = { URL: "https://bcfrwkcmavxnvrpsoxcc.supabase.co", KEY: "sb_publishable_GTkrC06l5lqplhhyu3KZQQ_u8ThJK-8", ADMIN_PASS: "change-me" };
+// -------------------------------------------------------------------------
+const GOAL = 14000, MAXV = 620, ACC = 260, K = .5;
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const col = id => { let h = 0; for (const c of String(id)) h = (h * 31 + c.charCodeAt(0)) % 360; return `hsl(${h} 80% 58%)`; };
+let sb, ch, role, room = "", me = { id: "", name: "" }, racers = {}, allowed = {}, wins = {}, board = [], state = "idle", jt, g, ac;
+
+function beep(f) { try { ac = ac || new AudioContext(); ac.resume(); const o = ac.createOscillator(), v = ac.createGain(); o.frequency.value = f; v.gain.value = .08; o.connect(v); v.connect(ac.destination); o.start(); o.stop(ac.currentTime + .15); } catch (e) {} }
+
+// tabs
+$("#tp").onclick = () => { $("#fp").hidden = false; $("#fa").hidden = true; $("#tp").className = "on"; $("#ta").className = "alt"; };
+$("#ta").onclick = () => { $("#fp").hidden = true; $("#fa").hidden = false; $("#ta").className = "on"; $("#tp").className = "alt"; };
+try { $("#ids").value = localStorage.getItem("ids") || ""; $("#arc").value = localStorage.getItem("room") || ""; } catch (e) {}
+
+function connect(code, cb) {
+  if (!window.supabase || CFG.URL.startsWith("YOUR")) { alert("Add your Supabase URL and anon key at the top of the file first."); return; }
+  sb = sb || supabase.createClient(CFG.URL, CFG.KEY);
+  ch = sb.channel("race-" + code.toLowerCase(), { config: { broadcast: { self: false } } });
+  ch.on("broadcast", { event: "m" }, ({ payload }) => onMsg(payload));
+  ch.subscribe(s => { if (s === "SUBSCRIBED") cb(); });
+}
+const send = p => ch.send({ type: "broadcast", event: "m", payload: p });
+
+// ---- player join ----
+$("#join").onclick = () => {
+  room = $("#rc").value.trim(); const id = $("#pid").value.trim();
+  if (!room || !id) { $("#perr").textContent = "Enter the room code and your ID."; return; }
+  beep(1); $("#perr").textContent = "Joining...";
+  connect(room, () => {
+    role = "p"; me.id = id; send({ t: "join", id });
+    jt = setTimeout(() => { $("#perr").textContent = "No reply. Check the room code and that the admin has opened the room."; sb.removeChannel(ch); }, 5000);
+  });
+};
+
+// ---- admin open ----
+$("#open").onclick = () => {
+  room = $("#arc").value.trim();
+  if ($("#apw").value !== CFG.ADMIN_PASS) { $("#aerr").textContent = "Wrong admin password."; return; }
+  if (!room) { $("#aerr").textContent = "Enter a room code."; return; }
+  allowed = {};
+  $("#ids").value.split("\n").forEach(l => { const [i, ...n] = l.split(","); if (i && i.trim()) allowed[i.trim()] = n.join(",").trim(); });
+  if (!Object.keys(allowed).length) { $("#aerr").textContent = "Add at least one player ID."; return; }
+  try { localStorage.setItem("ids", $("#ids").value); localStorage.setItem("room", room); } catch (e) {}
+  connect(room, () => { role = "h"; state = "lobby"; showRoom(); });
+};
+
+function showRoom() {
+  $("#home").hidden = true; $("#room").hidden = false;
+  $("#rt").textContent = role === "h" ? "Room " + room : "You're in, " + me.name;
+  $("#hb").hidden = role !== "h"; renderInfo();
+}
+function renderInfo() {
+  if (role === "h") { const n = Object.keys(racers).length; $("#info").innerHTML = n ? `${n} joined: ${Object.values(racers).map(r => esc(r.name)).join(", ")}` : "Waiting for players to join."; }
+  else $("#info").textContent = state === "race" || state === "count" ? "Race on." : "Waiting for the admin to start the race.";
+}
+
+// ---- messages ----
+function onMsg(m) {
+  if (role === "h") {
+    if (m.t === "join") {
+      const n = allowed[m.id];
+      if (n === undefined) { send({ t: "deny", id: m.id }); return; }
+      if (!racers[m.id]) racers[m.id] = { name: n || m.id, p: 0 };
+      send({ t: "ack", id: m.id, name: racers[m.id].name }); renderInfo();
+    } else if (m.t === "pos" && racers[m.id]) { racers[m.id].p = m.p; renderStrip(); }
+    else if (m.t === "fin" && racers[m.id] && !board.some(b => b.id === m.id)) {
+      racers[m.id].p = GOAL; board.push({ id: m.id, name: racers[m.id].name });
+      if (board.length === 1) wins[m.id] = (wins[m.id] || 0) + 1;
+      send({ t: "board", board, wins }); renderResults(); renderStrip();
+    }
+  } else {
+    if (m.t === "ack" && m.id === me.id) { clearTimeout(jt); me.name = m.name; role = "p"; showRoom(); }
+    else if (m.t === "deny" && m.id === me.id) { clearTimeout(jt); $("#perr").textContent = "That ID is not allowed in this room."; sb.removeChannel(ch); }
+    else if (m.t === "start") startCountdown(m.seed, m.roster);
+    else if (m.t === "pos" && m.id !== me.id) { racers[m.id] = { name: m.n, p: m.p }; renderStrip(); }
+    else if (m.t === "board") { board = m.board; wins = m.wins; renderResults(); }
+    else if (m.t === "reset") toLobby();
+    else if (m.t === "end") wipe("The admin ended the room. All data was cleared.");
+  }
+}
+
+$("#start").onclick = () => {
+  if (!Object.keys(racers).length) return;
+  const seed = Math.floor(Math.random() * 1e9);
+  const roster = Object.entries(racers).map(([id, r]) => ({ id, name: r.name }));
+  send({ t: "start", seed, roster }); startCountdown(seed, roster);
+};
+$("#reset").onclick = () => { send({ t: "reset" }); toLobby(); };
+function toLobby() { state = "lobby"; board = []; Object.values(racers).forEach(r => r.p = 0); $("#game").hidden = true; $("#strip").hidden = true; $("#results").hidden = true; $("#big").textContent = ""; g = null; renderInfo(); }
+
+function wipe(msg) {
+  try { sb.removeChannel(ch); } catch (e) {}
+  racers = {}; allowed = {}; wins = {}; board = []; state = "idle"; g = null; role = null; room = ""; me = { id: "", name: "" };
+  try { localStorage.removeItem("ids"); localStorage.removeItem("room"); } catch (e) {}
+  ["#rc", "#pid", "#arc", "#apw", "#ids"].forEach(s => $(s).value = "");
+  ["#room", "#game", "#strip", "#results"].forEach(s => $(s).hidden = true);
+  $("#big").textContent = ""; $("#info").textContent = ""; $("#home").hidden = false;
+  $("#perr").textContent = msg || ""; $("#aerr").textContent = msg || "";
+}
+$("#endroom").onclick = () => {
+  if (!confirm("End the room and delete all players, results and saved IDs?")) return;
+  send({ t: "end" }); setTimeout(() => wipe("Room ended. All data was cleared."), 300);
+};
+
+function startCountdown(seed, roster) {
+  racers = {}; roster.forEach(r => racers[r.id] = { name: r.name, p: 0 }); board = []; state = "count";
+  renderResults(); renderStrip(); renderInfo();
+  if (role === "p") { $("#game").hidden = false; initGame(seed); }
+  let n = 3; $("#big").textContent = n; beep(440);
+  const iv = setInterval(() => {
+    n--;
+    if (n > 0) { $("#big").textContent = n; beep(440); }
+    else { clearInterval(iv); $("#big").textContent = "GO!"; beep(880); state = "race"; renderInfo(); setTimeout(() => { if (state === "race") $("#big").textContent = ""; }, 800); }
+  }, 1000);
+}
+
+function renderStrip() {
+  const a = Object.entries(racers).sort((x, y) => y[1].p - x[1].p);
+  $("#strip").hidden = !a.length;
+  $("#strip").innerHTML = a.map(([id, r]) => `<div class="lane"><span class="nm">${esc(r.name)}</span><div class="trk"><i style="left:calc((100% - 22px)*${Math.min(1, r.p / GOAL)});background:${col(id)}"></i></div></div>`).join("");
+}
+function renderResults() {
+  $("#results").hidden = !board.length; if (!board.length) return;
+  const nameOf = id => (racers[id] && racers[id].name) || id;
+  const t = Object.entries(wins).sort((a, b) => b[1] - a[1]);
+  $("#results").innerHTML = `<h2 class="crown">${esc(board[0].name)} wins!</h2><ol>${board.map(b => `<li>${esc(b.name)}</li>`).join("")}</ol><h3>Wins this session</h3>` + t.map(([id, n]) => `<div>${esc(nameOf(id))}: ${n}</div>`).join("");
+}
+
+// ---- game ----
+function rng(s) { return () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function initGame(seed) {
+  const r = rng(seed), ob = []; let y = 700;
+  while (y < GOAL - 300) { ob.push({ y, l: Math.floor(r() * 3), hit: false }); y += 280 + r() * 260; }
+  g = { p: 0, v: 0, lane: 1, x: 1, ob, keys: {}, gas: false, last: performance.now(), sent: 0, done: false, shake: 0 };
+}
+const lane = d => { if (g && state === "race") g.lane = Math.max(0, Math.min(2, g.lane + d)); };
+addEventListener("keydown", e => {
+  if (role !== "p" || !g) return;
+  if (["ArrowLeft", "ArrowRight", "ArrowUp", " "].includes(e.key)) e.preventDefault();
+  if (e.repeat) return;
+  if (e.key === "ArrowLeft" || e.key === "a") lane(-1);
+  if (e.key === "ArrowRight" || e.key === "d") lane(1);
+  g.keys[e.key] = true;
+});
+addEventListener("keyup", e => { if (g) g.keys[e.key] = false; });
+$("#bl").onpointerdown = () => lane(-1);
+$("#br").onpointerdown = () => lane(1);
+$("#gas").onpointerdown = e => { if (g) g.gas = true; };
+["pointerup", "pointerleave", "pointercancel"].forEach(ev => $("#gas").addEventListener(ev, () => { if (g) g.gas = false; }));
+
+function frame(now) {
+  requestAnimationFrame(frame);
+  if (role !== "p" || !g) return;
+  const dt = Math.min(.05, (now - g.last) / 1000); g.last = now;
+  if (state === "race" && !g.done) {
+    const gas = g.keys.ArrowUp || g.keys[" "] || g.keys.w || g.gas;
+    g.v = gas ? Math.min(MAXV, g.v + ACC * dt) : Math.max(0, g.v - 200 * dt);
+    g.p += g.v * dt;
+    for (const o of g.ob) if (!o.hit && o.l === g.lane && Math.abs(o.y - g.p) < 40) { o.hit = true; g.v *= .3; g.shake = .25; beep(150); }
+    if (now - g.sent > 100) { g.sent = now; send({ t: "pos", id: me.id, n: me.name, p: g.p }); racers[me.id] = { name: me.name, p: g.p }; renderStrip(); }
+    if (g.p >= GOAL) { g.done = true; g.p = GOAL; racers[me.id] = { name: me.name, p: GOAL }; send({ t: "pos", id: me.id, n: me.name, p: GOAL }); send({ t: "fin", id: me.id }); renderStrip(); }
+  }
+  g.x += (g.lane - g.x) * Math.min(1, dt * 14); g.shake = Math.max(0, g.shake - dt);
+  draw();
+}
+function car(x, cx, cy, c) {
+  x.fillStyle = c; x.beginPath(); x.roundRect(cx - 17, cy - 30, 34, 60, 8); x.fill();
+  x.fillStyle = "#13151a"; x.fillRect(cx - 12, cy - 14, 24, 14); x.fillRect(cx - 12, cy + 12, 24, 8);
+  x.fillStyle = "#e8e2d0"; x.fillRect(cx - 14, cy - 30, 6, 4); x.fillRect(cx + 8, cy - 30, 6, 4);
+}
+function draw() {
+  const x = $("#cv").getContext("2d"), W = 360, H = 560, CY = 440, LW = 280 / 3;
+  x.save(); if (g.shake) x.translate((Math.random() - .5) * 8, (Math.random() - .5) * 8);
+  x.fillStyle = "#13151a"; x.fillRect(-10, -10, W + 20, H + 20);
+  x.fillStyle = "#262a32"; x.fillRect(40, 0, 280, H);
+  x.fillStyle = "#e8e2d0"; x.fillRect(36, 0, 4, H); x.fillRect(320, 0, 4, H);
+  const off = (g.p * K) % 48;
+  for (let i = -1; i < H / 48 + 1; i++) for (const lx of [40 + LW, 40 + 2 * LW]) x.fillRect(lx - 2, i * 48 + off, 4, 24);
+  const fy = CY - (GOAL - g.p) * K;
+  if (fy > -30) for (let r = 0; r < 2; r++) for (let c = 0; c < 14; c++) { x.fillStyle = (r + c) % 2 ? "#e8e2d0" : "#13151a"; x.fillRect(40 + c * 20, fy - 20 + r * 10, 20, 10); }
+  for (const o of g.ob) {
+    const y = CY - (o.y - g.p) * K; if (y < -30 || y > H + 30) continue;
+    const cx = 40 + LW * (o.l + .5);
+    x.fillStyle = o.hit ? "#8a5a00" : "#ff7a00"; x.beginPath(); x.moveTo(cx, y - 18); x.lineTo(cx + 14, y + 14); x.lineTo(cx - 14, y + 14); x.fill();
+    x.fillStyle = "#e8e2d0"; x.fillRect(cx - 8, y, 16, 4);
+  }
+  car(x, 40 + LW * (g.x + .5), CY, col(me.id));
+  x.restore();
+  x.fillStyle = "#e8e2d0"; x.font = "700 16px Barlow,sans-serif";
+  x.fillText(Math.round(g.v * .4) + " km/h", 10, 22); x.fillText(Math.min(100, Math.round(g.p / GOAL * 100)) + "%", 10, 44);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
