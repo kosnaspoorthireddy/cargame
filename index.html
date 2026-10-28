@@ -17,21 +17,22 @@ h3{margin:14px 0 6px;font-size:16px;color:var(--mute)}
 p.sub{margin:0 0 18px;color:var(--mute)}
 .card{background:var(--tarmac);border-radius:6px;padding:16px;margin-bottom:14px;border-left:6px solid var(--amber)}
 label{display:block;margin:10px 0 4px;color:var(--mute);font-size:14px}
-input,textarea{width:100%;padding:11px;border:2px solid #3a3f4a;background:var(--asphalt);color:var(--paint);border-radius:4px;font:inherit}
-input:focus,textarea:focus,button:focus-visible{outline:3px solid var(--amber);outline-offset:1px}
+input,textarea,select{width:100%;padding:11px;border:2px solid #3a3f4a;background:var(--asphalt);color:var(--paint);border-radius:4px;font:inherit}
+input:focus,textarea:focus,select:focus,button:focus-visible{outline:3px solid var(--amber);outline-offset:1px}
 textarea{min-height:110px;resize:vertical}
 button{font:700 16px Barlow,sans-serif;padding:12px 18px;border:0;border-radius:4px;background:var(--amber);color:#1b1500;cursor:pointer;margin-top:12px}
 button.alt{background:#3a3f4a;color:var(--paint)}
-.tabs{display:flex;gap:8px;margin-bottom:12px}.tabs button{margin:0;flex:1}.tabs .on{background:var(--amber);color:#1b1500}
+.row{display:flex;gap:10px}
+.tabs{display:flex;gap:8px;margin-bottom:12px}.tabs button{margin:0;flex:1}
 .err{color:var(--red);min-height:20px;margin-top:8px}
 .lane{display:flex;align-items:center;gap:8px;margin:5px 0}
 .nm{width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
 .trk{flex:1;height:14px;background:var(--asphalt);border-radius:7px;position:relative;border-right:4px dashed var(--paint)}
 .trk i{position:absolute;top:1px;width:22px;height:12px;border-radius:4px}
 #big{font:400 96px/1 Bungee,Impact,sans-serif;text-align:center;color:var(--amber);height:100px}
-#game{position:relative}
-canvas{width:100%;max-width:360px;display:block;margin:0 auto;border-radius:6px;touch-action:none}
-.pad{display:flex;gap:10px;max-width:360px;margin:10px auto 0}.pad button{flex:1;margin:0;padding:18px 0;font-size:20px;user-select:none;touch-action:none}
+canvas{width:100%;max-width:420px;display:block;margin:0 auto;border-radius:6px;touch-action:none}
+.pad{display:flex;gap:8px;max-width:420px;margin:10px auto 0}
+.pad button{flex:1;margin:0;padding:18px 0;font-size:18px;user-select:none;touch-action:none}
 .pad #gas{flex:2;background:var(--red);color:#fff}
 ol{margin:6px 0;padding-left:22px}
 .crown{color:var(--amber)}
@@ -43,7 +44,7 @@ ol{margin:6px 0;padding-left:22px}
 <p class="sub">Quick race for everyone in the room. The admin starts it.</p>
 
 <section id="home">
-  <div class="tabs"><button id="tp" class="on">I'm a player</button><button id="ta" class="alt">I'm the admin</button></div>
+  <div class="tabs"><button id="tp">I'm a player</button><button id="ta" class="alt">I'm the admin</button></div>
   <div class="card" id="fp">
     <label for="rc">Room code</label><input id="rc" autocomplete="off">
     <label for="pid">Your ID</label><input id="pid" autocomplete="off">
@@ -60,35 +61,40 @@ ol{margin:6px 0;padding-left:22px}
 
 <section id="room" hidden>
   <div class="card"><h2 id="rt"></h2><div id="info"></div>
-    <div id="hb" hidden><button id="start">Start race</button> <button id="reset" class="alt">New round</button> <button id="endroom" class="alt">End room</button></div>
+    <div id="hb" hidden>
+      <div class="row" style="margin-top:10px">
+        <select id="dist" aria-label="Race distance"><option value="0.5">0.5 km</option><option value="1">1 km</option><option value="2" selected>2 km</option><option value="3">3 km</option><option value="5">5 km</option><option value="10">10 km</option></select>
+        <select id="env" aria-label="Environment"><option value="day">Day</option><option value="desert">Desert</option><option value="snow">Snow</option><option value="night">Night city</option></select>
+      </div>
+      <button id="start">Start race</button> <button id="reset" class="alt">New round</button> <button id="endroom" class="alt">End room</button>
+    </div>
   </div>
   <div id="results" class="card" hidden></div>
   <div id="strip" class="card" hidden></div>
   <div id="big" aria-live="assertive"></div>
   <div id="game" hidden>
-    <canvas id="cv" width="360" height="560"></canvas>
-    <div class="pad"><button id="bl" class="alt" aria-label="Move left">&lt;</button><button id="gas">Hold to drive</button><button id="br" class="alt" aria-label="Move right">&gt;</button></div>
-    <p class="sub" style="text-align:center;margin-top:10px">Keyboard: arrow left/right to change lane, arrow up or space to drive. Cones slow you down.</p>
+    <canvas id="cv" width="360" height="480"></canvas>
+    <div class="pad"><button id="bl" class="alt" aria-label="Steer left">&lt;</button><button id="br" class="alt" aria-label="Steer right">&gt;</button><button id="bk" class="alt">Brake</button><button id="gas">Gas</button></div>
+    <p class="sub" style="text-align:center;margin-top:10px">Keyboard: left/right steer, up or space = gas, down = brake. Slow down before sharp turns. The longer the race, the harder it gets.</p>
   </div>
 </section>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
-// ---- SETUP: paste your Supabase values and choose an admin password ----
-const CFG = { URL: "https://bcfrwkcmavxnvrpsoxcc.supabase.co", KEY: "sb_publishable_GTkrC06l5lqplhhyu3KZQQ_u8ThJK-8", ADMIN_PASS: "pardhu6281" };
-// -------------------------------------------------------------------------
-const GOAL = 14000, MAXV = 620, ACC = 260, K = .5;
+// ---- SETUP: Supabase values and admin password ----
+const CFG = { URL: "https://bcfrwkcmavxnvrpsoxcc.supabase.co", KEY: "sb_publishable_GTkrC06l5lqplhhyu3KZQQ_u8ThJK-8", ADMIN_PASS: "change-me" };
+// ---------------------------------------------------
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const col = id => { let h = 0; for (const c of String(id)) h = (h * 31 + c.charCodeAt(0)) % 360; return `hsl(${h} 80% 58%)`; };
 let sb, ch, role, room = "", me = { id: "", name: "" }, racers = {}, allowed = {}, wins = {}, board = [], state = "idle", jt, g, ac;
+const inp = { l: 0, r: 0, g: 0, b: 0 };
 
 function beep(f) { try { ac = ac || new AudioContext(); ac.resume(); const o = ac.createOscillator(), v = ac.createGain(); o.frequency.value = f; v.gain.value = .08; o.connect(v); v.connect(ac.destination); o.start(); o.stop(ac.currentTime + .15); } catch (e) {} }
 
-// tabs
-$("#tp").onclick = () => { $("#fp").hidden = false; $("#fa").hidden = true; $("#tp").className = "on"; $("#ta").className = "alt"; };
-$("#ta").onclick = () => { $("#fp").hidden = true; $("#fa").hidden = false; $("#ta").className = "on"; $("#tp").className = "alt"; };
+$("#tp").onclick = () => { $("#fp").hidden = false; $("#fa").hidden = true; $("#tp").className = ""; $("#ta").className = "alt"; };
+$("#ta").onclick = () => { $("#fp").hidden = true; $("#fa").hidden = false; $("#ta").className = ""; $("#tp").className = "alt"; };
 try { $("#ids").value = localStorage.getItem("ids") || ""; $("#arc").value = localStorage.getItem("room") || ""; } catch (e) {}
 
 function connect(code, cb) {
@@ -100,7 +106,6 @@ function connect(code, cb) {
 }
 const send = p => ch.send({ type: "broadcast", event: "m", payload: p });
 
-// ---- player join ----
 $("#join").onclick = () => {
   room = $("#rc").value.trim(); const id = $("#pid").value.trim();
   if (!room || !id) { $("#perr").textContent = "Enter the room code and your ID."; return; }
@@ -111,7 +116,6 @@ $("#join").onclick = () => {
   });
 };
 
-// ---- admin open ----
 $("#open").onclick = () => {
   room = $("#arc").value.trim();
   if ($("#apw").value !== CFG.ADMIN_PASS) { $("#aerr").textContent = "Wrong admin password."; return; }
@@ -133,7 +137,6 @@ function renderInfo() {
   else $("#info").textContent = state === "race" || state === "count" ? "Race on." : "Waiting for the admin to start the race.";
 }
 
-// ---- messages ----
 function onMsg(m) {
   if (role === "h") {
     if (m.t === "join") {
@@ -143,14 +146,14 @@ function onMsg(m) {
       send({ t: "ack", id: m.id, name: racers[m.id].name }); renderInfo();
     } else if (m.t === "pos" && racers[m.id]) { racers[m.id].p = m.p; renderStrip(); }
     else if (m.t === "fin" && racers[m.id] && !board.some(b => b.id === m.id)) {
-      racers[m.id].p = GOAL; board.push({ id: m.id, name: racers[m.id].name });
+      racers[m.id].p = 1; board.push({ id: m.id, name: racers[m.id].name });
       if (board.length === 1) wins[m.id] = (wins[m.id] || 0) + 1;
       send({ t: "board", board, wins }); renderResults(); renderStrip();
     }
   } else {
     if (m.t === "ack" && m.id === me.id) { clearTimeout(jt); me.name = m.name; role = "p"; showRoom(); }
     else if (m.t === "deny" && m.id === me.id) { clearTimeout(jt); $("#perr").textContent = "That ID is not allowed in this room."; sb.removeChannel(ch); }
-    else if (m.t === "start") startCountdown(m.seed, m.roster);
+    else if (m.t === "start") startCountdown(m.seed, m.roster, m.dist, m.env);
     else if (m.t === "pos" && m.id !== me.id) { racers[m.id] = { name: m.n, p: m.p }; renderStrip(); }
     else if (m.t === "board") { board = m.board; wins = m.wins; renderResults(); }
     else if (m.t === "reset") toLobby();
@@ -160,9 +163,9 @@ function onMsg(m) {
 
 $("#start").onclick = () => {
   if (!Object.keys(racers).length) return;
-  const seed = Math.floor(Math.random() * 1e9);
+  const seed = Math.floor(Math.random() * 1e9), dist = +$("#dist").value, env = $("#env").value;
   const roster = Object.entries(racers).map(([id, r]) => ({ id, name: r.name }));
-  send({ t: "start", seed, roster }); startCountdown(seed, roster);
+  send({ t: "start", seed, roster, dist, env }); startCountdown(seed, roster, dist, env);
 };
 $("#reset").onclick = () => { send({ t: "reset" }); toLobby(); };
 function toLobby() { state = "lobby"; board = []; Object.values(racers).forEach(r => r.p = 0); $("#game").hidden = true; $("#strip").hidden = true; $("#results").hidden = true; $("#big").textContent = ""; g = null; renderInfo(); }
@@ -181,10 +184,10 @@ $("#endroom").onclick = () => {
   send({ t: "end" }); setTimeout(() => wipe("Room ended. All data was cleared."), 300);
 };
 
-function startCountdown(seed, roster) {
+function startCountdown(seed, roster, dist, env) {
   racers = {}; roster.forEach(r => racers[r.id] = { name: r.name, p: 0 }); board = []; state = "count";
   renderResults(); renderStrip(); renderInfo();
-  if (role === "p") { $("#game").hidden = false; initGame(seed); }
+  if (role === "p") { $("#game").hidden = false; initGame(seed, dist, env); }
   let n = 3; $("#big").textContent = n; beep(440);
   const iv = setInterval(() => {
     n--;
@@ -196,7 +199,7 @@ function startCountdown(seed, roster) {
 function renderStrip() {
   const a = Object.entries(racers).sort((x, y) => y[1].p - x[1].p);
   $("#strip").hidden = !a.length;
-  $("#strip").innerHTML = a.map(([id, r]) => `<div class="lane"><span class="nm">${esc(r.name)}</span><div class="trk"><i style="left:calc((100% - 22px)*${Math.min(1, r.p / GOAL)});background:${col(id)}"></i></div></div>`).join("");
+  $("#strip").innerHTML = a.map(([id, r]) => `<div class="lane"><span class="nm">${esc(r.name)}</span><div class="trk"><i style="left:calc((100% - 22px)*${Math.min(1, r.p)});background:${col(id)}"></i></div></div>`).join("");
 }
 function renderResults() {
   $("#results").hidden = !board.length; if (!board.length) return;
@@ -205,68 +208,138 @@ function renderResults() {
   $("#results").innerHTML = `<h2 class="crown">${esc(board[0].name)} wins!</h2><ol>${board.map(b => `<li>${esc(b.name)}</li>`).join("")}</ol><h3>Wins this session</h3>` + t.map(([id, n]) => `<div>${esc(nameOf(id))}: ${n}</div>`).join("");
 }
 
-// ---- game ----
+// ================= GAME =================
+// SEG = length of one road piece. RW = road half-width. DRAW = how many pieces are drawn ahead.
+// CS = how strongly curves bend the picture. 1 km = 500 pieces.
+const SEG = 200, RW = 900, DRAW = 100, CAMH = 1000, CD = .84, PZ = CAMH * CD, W = 360, H = 480, HOR = 220, S = W / 2, CS = .5;
+// Environments: colours only, add your own here (sky top/bottom, grass x2, rumble strip x2, road x2, lane line)
+const PAL = {
+  day:    { sky: ["#4aa3e8", "#bfe4ff"], g: ["#3f9a3a", "#378c33"], rb: ["#d33", "#eee"], rd: ["#555a63", "#4d525a"], ln: "#eee" },
+  desert: { sky: ["#e8893a", "#ffd9a0"], g: ["#d9a95a", "#cf9f50"], rb: ["#a33", "#eee"], rd: ["#5c5750", "#55504a"], ln: "#f1e6c8" },
+  snow:   { sky: ["#8aa2b8", "#dfe9f2"], g: ["#f4f8fb", "#e6eef4"], rb: ["#c33", "#eee"], rd: ["#50555c", "#484d54"], ln: "#eee" },
+  night:  { sky: ["#050818", "#1b2a52"], g: ["#0f2a16", "#0c2312"], rb: ["#8a2a2a", "#bbb"], rd: ["#23262d", "#1e2127"], ln: "#cfcfcf" }
+};
 function rng(s) { return () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
-function initGame(seed) {
-  const r = rng(seed), ob = []; let y = 700;
-  while (y < GOAL - 300) { ob.push({ y, l: Math.floor(r() * 3), hit: false }); y += 280 + r() * 260; }
-  g = { p: 0, v: 0, lane: 1, x: 1, ob, keys: {}, gas: false, last: performance.now(), sent: 0, done: false, shake: 0 };
+
+function initGame(seed, dist, env) {
+  const r = rng(seed), n = Math.round(dist * 500), cv = [], ease = t => t * t * (3 - 2 * t);
+  const sec = (e, h, l, c) => { for (let i = 0; i < e; i++) cv.push(c * ease(i / e)); for (let i = 0; i < h; i++) cv.push(c); for (let i = 0; i < l; i++) cv.push(c * (1 - ease(i / l))); };
+  sec(0, 50, 0, 0);
+  // ROAD: d = progress 0..1. Turns get sharper and straights rarer as d grows. Tweak the numbers to change difficulty.
+  while (cv.length < n) {
+    const d = cv.length / n, c = (r() < .5 ? -1 : 1) * (1.2 + r() * (.8 + 3.8 * d));
+    if (r() < .45 - .3 * d) sec(10, (20 + r() * 50) | 0, 10, 0);
+    else { sec(14, (10 + r() * (30 + 30 * d)) | 0, 14, c); if (d > .3 && r() < .35) sec(12, 8, 12, -c * .9); }
+  }
+  while (cv.length < n + DRAW + 150) cv.push(0);
+  // TRAFFIC: gets denser and faster with progress
+  const tr = [], tot = n * SEG; let z = 1600;
+  while (z < tot - 1200) {
+    const d = z / tot;
+    tr.push({ z0: z, z, x: [-.66, 0, .66][(r() * 3) | 0], v: 1600 + r() * 2200 + d * 1800, c: `hsl(${(r() * 360) | 0} 60% 48%)`, hit: false });
+    z += SEG * (60 - 38 * d) + r() * SEG * (36 - 18 * d);
+  }
+  g = { pos: 0, v: 0, x: 0, cv, tr, n, tot, env, t: 0, last: performance.now(), sent: 0, done: false, shake: 0, off: false };
 }
-const lane = d => { if (g && state === "race") g.lane = Math.max(0, Math.min(2, g.lane + d)); };
-addEventListener("keydown", e => {
-  if (role !== "p" || !g) return;
-  if (["ArrowLeft", "ArrowRight", "ArrowUp", " "].includes(e.key)) e.preventDefault();
-  if (e.repeat) return;
-  if (e.key === "ArrowLeft" || e.key === "a") lane(-1);
-  if (e.key === "ArrowRight" || e.key === "d") lane(1);
-  g.keys[e.key] = true;
-});
-addEventListener("keyup", e => { if (g) g.keys[e.key] = false; });
-$("#bl").onpointerdown = () => lane(-1);
-$("#br").onpointerdown = () => lane(1);
-$("#gas").onpointerdown = e => { if (g) g.gas = true; };
-["pointerup", "pointerleave", "pointercancel"].forEach(ev => $("#gas").addEventListener(ev, () => { if (g) g.gas = false; }));
+
+const KM = { ArrowLeft: "l", a: "l", ArrowRight: "r", d: "r", ArrowUp: "g", w: "g", " ": "g", ArrowDown: "b", s: "b" };
+addEventListener("keydown", e => { if (role !== "p" || !g) return; const k = KM[e.key]; if (k) { e.preventDefault(); inp[k] = 1; } });
+addEventListener("keyup", e => { const k = KM[e.key]; if (k) inp[k] = 0; });
+const hold = (s, k) => { const e = $(s); e.onpointerdown = ev => { ev.preventDefault(); inp[k] = 1; }; ["pointerup", "pointerleave", "pointercancel"].forEach(v => e.addEventListener(v, () => inp[k] = 0)); };
+hold("#bl", "l"); hold("#br", "r"); hold("#gas", "g"); hold("#bk", "b");
+
+function step(dt) {
+  const d = Math.min(1, g.pos / g.tot), vt = 7000 + 3000 * d;   // top speed grows from ~250 to ~360 km/h
+  const live = state === "race" && !g.done, off = Math.abs(g.x) > 1.12, cap = off ? vt * .28 : vt, sp = Math.min(1, g.v / vt);
+  g.off = off;
+  if (live && inp.g) g.v += 1100 * (1 - .85 * sp) * dt * (off ? .4 : 1); else g.v -= (g.done ? 4500 : 900) * dt;
+  if (live && inp.b) g.v -= 6500 * dt;
+  if (g.v > cap) g.v = off ? Math.max(cap, g.v - 9000 * dt) : cap;
+  g.v = Math.max(0, g.v);
+  const cur = g.cv[Math.floor((g.pos + PZ) / SEG)] || 0, dx = dt * 2.4 * (g.v > 200 ? Math.min(1, .3 + sp) : 0);
+  if (live) { if (inp.l) g.x -= dx; if (inp.r) g.x += dx; }
+  g.x -= dt * 2 * sp * sp * cur * .26;            // turns push the car outward, harder at speed
+  g.x = Math.max(-2.4, Math.min(2.4, g.x));
+  g.pos += g.v * dt; g.t += dt;
+  for (const c of g.tr) {
+    c.z = c.z0 + c.v * g.t;
+    if (live && !c.hit && Math.abs(c.z - (g.pos + PZ)) < 320 && Math.abs(c.x - g.x) < .34) { c.hit = true; g.v *= .3; g.shake = .35; beep(140); }
+  }
+  if (off && g.v > 1500) g.shake = Math.max(g.shake, .05);
+  g.shake = Math.max(0, g.shake - dt);
+  const now = performance.now();
+  if (!g.done && now - g.sent > 100) { g.sent = now; const p = Math.min(1, g.pos / g.tot); send({ t: "pos", id: me.id, n: me.name, p }); racers[me.id] = { name: me.name, p }; renderStrip(); }
+  if (!g.done && g.pos >= g.tot) { g.done = true; racers[me.id] = { name: me.name, p: 1 }; send({ t: "pos", id: me.id, n: me.name, p: 1 }); send({ t: "fin", id: me.id }); renderStrip(); }
+}
 
 function frame(now) {
   requestAnimationFrame(frame);
   if (role !== "p" || !g) return;
   const dt = Math.min(.05, (now - g.last) / 1000); g.last = now;
-  if (state === "race" && !g.done) {
-    const gas = g.keys.ArrowUp || g.keys[" "] || g.keys.w || g.gas;
-    g.v = gas ? Math.min(MAXV, g.v + ACC * dt) : Math.max(0, g.v - 200 * dt);
-    g.p += g.v * dt;
-    for (const o of g.ob) if (!o.hit && o.l === g.lane && Math.abs(o.y - g.p) < 40) { o.hit = true; g.v *= .3; g.shake = .25; beep(150); }
-    if (now - g.sent > 100) { g.sent = now; send({ t: "pos", id: me.id, n: me.name, p: g.p }); racers[me.id] = { name: me.name, p: g.p }; renderStrip(); }
-    if (g.p >= GOAL) { g.done = true; g.p = GOAL; racers[me.id] = { name: me.name, p: GOAL }; send({ t: "pos", id: me.id, n: me.name, p: GOAL }); send({ t: "fin", id: me.id }); renderStrip(); }
-  }
-  g.x += (g.lane - g.x) * Math.min(1, dt * 14); g.shake = Math.max(0, g.shake - dt);
+  if (state === "race" || g.done) step(dt);
   draw();
 }
-function car(x, cx, cy, c) {
-  x.fillStyle = c; x.beginPath(); x.roundRect(cx - 17, cy - 30, 34, 60, 8); x.fill();
-  x.fillStyle = "#13151a"; x.fillRect(cx - 12, cy - 14, 24, 14); x.fillRect(cx - 12, cy + 12, 24, 8);
-  x.fillStyle = "#e8e2d0"; x.fillRect(cx - 14, cy - 30, 6, 4); x.fillRect(cx + 8, cy - 30, 6, 4);
+
+const poly = (x, x1, y1, w1, x2, y2, w2, c) => { x.fillStyle = c; x.beginPath(); x.moveTo(x1 - w1, y1); x.lineTo(x1 + w1, y1); x.lineTo(x2 + w2, y2); x.lineTo(x2 - w2, y2); x.fill(); };
+function car(x, cx, by, w, c) {
+  const h = w * .6;
+  x.fillStyle = "rgba(0,0,0,.35)"; x.fillRect(cx - w * .52, by - h * .08, w * 1.04, h * .12);
+  x.fillStyle = "#111"; x.fillRect(cx - w * .5, by - h * .32, w * .17, h * .32); x.fillRect(cx + w * .33, by - h * .32, w * .17, h * .32);
+  x.fillStyle = c; x.fillRect(cx - w * .45, by - h * .7, w * .9, h * .5); x.fillRect(cx - w * .3, by - h, w * .6, h * .32);
+  x.fillStyle = "#0e141c"; x.fillRect(cx - w * .24, by - h * .94, w * .48, h * .22);
+  x.fillStyle = "#ff2d2d"; x.fillRect(cx - w * .42, by - h * .55, w * .2, h * .1); x.fillRect(cx + w * .22, by - h * .55, w * .2, h * .1);
 }
+function deco(x, e, a, sd) {
+  const s = a.w * .5, px = a.x + sd * a.w * 1.6, y = a.y;
+  if (s < 3 || px < -s || px > W + s) return;
+  if (e === "desert") { x.fillStyle = "#2f7d3a"; x.fillRect(px - s * .07, y - s, s * .14, s); x.fillRect(px - s * .3, y - s * .6, s * .23, s * .09); x.fillRect(px - s * .3, y - s * .8, s * .09, s * .3); }
+  else if (e === "snow") { x.fillStyle = "#1f4d3a"; x.beginPath(); x.moveTo(px, y - s * 1.3); x.lineTo(px + s * .4, y); x.lineTo(px - s * .4, y); x.fill(); x.fillStyle = "#fff"; x.beginPath(); x.moveTo(px, y - s * 1.3); x.lineTo(px + s * .2, y - s * .8); x.lineTo(px - s * .2, y - s * .8); x.fill(); }
+  else if (e === "night") { x.fillStyle = "#8a8f99"; x.fillRect(px - s * .04, y - s * 1.3, s * .08, s * 1.3); x.fillStyle = "#ffd36a"; x.beginPath(); x.arc(px, y - s * 1.35, s * .14, 0, 7); x.fill(); }
+  else { x.fillStyle = "#5a3a1a"; x.fillRect(px - s * .06, y - s * .5, s * .12, s * .5); x.fillStyle = "#1f7a2b"; x.beginPath(); x.arc(px, y - s * .75, s * .35, 0, 7); x.fill(); }
+}
+
 function draw() {
-  const x = $("#cv").getContext("2d"), W = 360, H = 560, CY = 440, LW = 280 / 3;
-  x.save(); if (g.shake) x.translate((Math.random() - .5) * 8, (Math.random() - .5) * 8);
-  x.fillStyle = "#13151a"; x.fillRect(-10, -10, W + 20, H + 20);
-  x.fillStyle = "#262a32"; x.fillRect(40, 0, 280, H);
-  x.fillStyle = "#e8e2d0"; x.fillRect(36, 0, 4, H); x.fillRect(320, 0, 4, H);
-  const off = (g.p * K) % 48;
-  for (let i = -1; i < H / 48 + 1; i++) for (const lx of [40 + LW, 40 + 2 * LW]) x.fillRect(lx - 2, i * 48 + off, 4, 24);
-  const fy = CY - (GOAL - g.p) * K;
-  if (fy > -30) for (let r = 0; r < 2; r++) for (let c = 0; c < 14; c++) { x.fillStyle = (r + c) % 2 ? "#e8e2d0" : "#13151a"; x.fillRect(40 + c * 20, fy - 20 + r * 10, 20, 10); }
-  for (const o of g.ob) {
-    const y = CY - (o.y - g.p) * K; if (y < -30 || y > H + 30) continue;
-    const cx = 40 + LW * (o.l + .5);
-    x.fillStyle = o.hit ? "#8a5a00" : "#ff7a00"; x.beginPath(); x.moveTo(cx, y - 18); x.lineTo(cx + 14, y + 14); x.lineTo(cx - 14, y + 14); x.fill();
-    x.fillStyle = "#e8e2d0"; x.fillRect(cx - 8, y, 16, 4);
+  const x = $("#cv").getContext("2d"), P = PAL[g.env] || PAL.day, bi = Math.floor(g.pos / SEG), bp = (g.pos % SEG) / SEG, camX = g.x * RW;
+  x.save(); if (g.shake > 0) x.translate((Math.random() - .5) * 8, (Math.random() - .5) * 8);
+  const sk = x.createLinearGradient(0, 0, 0, HOR); sk.addColorStop(0, P.sky[0]); sk.addColorStop(1, P.sky[1]);
+  x.fillStyle = sk; x.fillRect(-10, -10, W + 20, HOR + 10); x.fillStyle = P.g[0]; x.fillRect(-10, HOR, W + 20, H);
+  const pr = (wz, xx) => { const z = wz - g.pos, s = CD / Math.max(z, 1); return { x: W / 2 + s * (xx - camX) * S, y: HOR + s * CAMH * S, w: s * RW * S, z }; };
+  let cx = 0, dc = -(g.cv[bi] || 0) * CS * bp; const pts = [];
+  for (let n = 0; n < DRAW; n++) { const i = bi + n, c = (g.cv[i] || 0) * CS, a = pr(i * SEG, cx), b = pr((i + 1) * SEG, cx + dc); cx += dc; dc += c; pts.push({ i, a, b }); }
+  for (let k = pts.length - 1; k >= 0; k--) {
+    const { i, a, b } = pts[k]; if (a.z <= CD) continue;
+    const alt = Math.floor(i / 4) % 2;
+    x.fillStyle = P.g[alt]; x.fillRect(0, b.y, W, a.y - b.y);
+    poly(x, a.x, a.y, a.w * 1.14, b.x, b.y, b.w * 1.14, P.rb[alt]);
+    poly(x, a.x, a.y, a.w, b.x, b.y, b.w, i === g.n ? "#fff" : i === g.n + 1 ? "#111" : P.rd[alt]);
+    if (alt && i < g.n) for (const l of [-.33, .33]) poly(x, a.x + a.w * l, a.y, a.w * .02, b.x + b.w * l, b.y, b.w * .02, P.ln);
+    if (i % 5 === 0) { deco(x, g.env, a, 1); deco(x, g.env, a, -1); }
+    for (const c of g.tr) if (((c.z / SEG) | 0) === i) car(x, a.x + c.x * a.w, a.y, a.w * .36, c.c);
   }
-  car(x, 40 + LW * (g.x + .5), CY, col(me.id));
+  car(x, W / 2 + (inp.r - inp.l) * 3, 412, 66, col(me.id));
   x.restore();
-  x.fillStyle = "#e8e2d0"; x.font = "700 16px Barlow,sans-serif";
-  x.fillText(Math.round(g.v * .4) + " km/h", 10, 22); x.fillText(Math.min(100, Math.round(g.p / GOAL * 100)) + "%", 10, 44);
+
+  // ---- HUD ----
+  const kmh = Math.round(g.v * .036), X = 58, Y = H - 58, R = 44, PI = Math.PI;
+  const gear = 1 + [50, 100, 150, 200, 250].filter(t => kmh >= t).length, rem = Math.max(0, (g.tot - g.pos) / 100);
+  const lv = 1 + Math.min(4, (g.pos / g.tot * 5) | 0), rank = 1 + Object.values(racers).filter(r => r.p > g.pos / g.tot).length;
+  x.fillStyle = "rgba(10,12,16,.72)"; x.beginPath(); x.arc(X, Y, R + 4, 0, 7); x.fill();
+  x.lineWidth = 3; x.strokeStyle = "#3a3f4a"; x.beginPath(); x.arc(X, Y, R - 4, .75 * PI, 2.25 * PI); x.stroke();
+  x.strokeStyle = "#e63946"; x.beginPath(); x.arc(X, Y, R - 4, (.75 + 1.5 * .85) * PI, 2.25 * PI); x.stroke();
+  x.fillStyle = "#e8e2d0"; x.font = "700 9px Barlow,sans-serif"; x.textAlign = "center";
+  for (let k = 0; k <= 6; k++) { const an = (.75 + 1.5 * k / 6) * PI; x.fillText(k * 60, X + Math.cos(an) * (R - 15), Y + Math.sin(an) * (R - 15) + 3); }
+  const na = (.75 + 1.5 * Math.min(1, kmh / 360)) * PI;
+  x.strokeStyle = "#ffb000"; x.beginPath(); x.moveTo(X, Y); x.lineTo(X + Math.cos(na) * (R - 9), Y + Math.sin(na) * (R - 9)); x.stroke();
+  x.fillStyle = "#ffb000"; x.font = "700 18px Barlow,sans-serif"; x.fillText(kmh, X, Y + 22); x.font = "700 9px Barlow,sans-serif"; x.fillText("km/h", X, Y + 33);
+  x.fillStyle = "#e8e2d0"; x.font = "700 16px Barlow,sans-serif"; x.textAlign = "left"; x.fillText("P" + rank + "/" + Object.keys(racers).length, 10, 24);
+  x.textAlign = "right"; x.fillText((rem >= 1000 ? (rem / 1000).toFixed(2) + " km" : Math.round(rem) + " m") + " to go", W - 10, 24); x.fillText("Level " + lv, W - 10, 44);
+  x.font = "700 12px Barlow,sans-serif"; x.fillText("GEAR", W - 12, H - 44); x.font = "400 34px Bungee,Impact,sans-serif"; x.fillText(gear, W - 12, H - 12);
+  x.textAlign = "center";
+  const wc = g.cv[bi + 30] || 0;
+  if (Math.abs(wc) >= 2.2 && state === "race" && !g.done) { x.fillStyle = Math.abs(wc) >= 4 ? "#e63946" : "#ffb000"; x.font = "400 28px Bungee,Impact,sans-serif"; x.fillText(wc > 0 ? ">>" : "<<", W / 2, 76); x.font = "700 13px Barlow,sans-serif"; x.fillText(Math.abs(wc) >= 4 ? "SHARP TURN" : "TURN", W / 2, 94); }
+  if (g.off && !g.done) { x.fillStyle = "#e63946"; x.font = "400 22px Bungee,Impact,sans-serif"; x.fillText("OFF ROAD", W / 2, 130); }
+  if (g.done) { x.fillStyle = "#ffb000"; x.font = "400 30px Bungee,Impact,sans-serif"; x.fillText("FINISHED", W / 2, 130); }
+  x.textAlign = "left";
 }
 requestAnimationFrame(frame);
 </script>
